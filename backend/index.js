@@ -22,9 +22,8 @@ if (missingEnvVars.length > 0) {
 const allowedOrigins = [
   'http://localhost:5173',
   'https://kazibookmanagement.netlify.app',
-  'https://book-management-plum.vercel.app',
-  process.env.FRONTEND_URL
-].filter(Boolean);
+  'https://book-management-plum.vercel.app'
+];
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -33,8 +32,7 @@ const corsOptions = {
       return callback(null, true);
     }
     
-    // Check if the origin is allowed
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.log('Blocked by CORS:', origin);
