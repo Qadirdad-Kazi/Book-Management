@@ -18,28 +18,20 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
-// CORS configuration
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://kazibookmanagement.netlify.app',
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
+// CORS configuration - Allow all origins in development, specific in production
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*', // Allow all origins temporarily
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
   maxAge: 86400 // 24 hours
 };
 
+// Apply CORS before other middleware
 app.use(cors(corsOptions));
+
+// Options preflight
+app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(express.json());
@@ -109,14 +101,12 @@ app.get('/', async (req, res) => {
       message: 'OK',
       timestamp: new Date().toISOString(),
       cors: {
-        allowedOrigins,
-        currentOrigin: req.get('origin')
+        origin: corsOptions.origin
       },
       env: {
         node_env: process.env.NODE_ENV,
         has_mongodb_uri: !!process.env.MONGODB_URI,
-        has_jwt_secret: !!process.env.JWT_SECRET,
-        has_frontend_url: !!process.env.FRONTEND_URL
+        has_jwt_secret: !!process.env.JWT_SECRET
       }
     };
 
@@ -169,13 +159,19 @@ app.use((err, req, res, next) => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  process.exit(1);
+  // Don't exit in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  // Don't exit in production
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
 });
 
 // Start server if not in Vercel
