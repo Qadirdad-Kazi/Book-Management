@@ -5,7 +5,8 @@
   "type": "module",
   "main": "index.js",
   "engines": {
-    "node": "18.x"
+    "node": "18.x",
+    "npm": ">=6.0.0"
   },
   "scripts": {
     "start": "node index.js",
