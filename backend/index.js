@@ -21,12 +21,20 @@ if (missingEnvVars.length > 0) {
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:5173',
-  process.env.FRONTEND_URL || 'https://kazibookmanagement.netlify.app'
-];
+  'https://kazibookmanagement.netlify.app',
+  'https://book-management-plum.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Check if the origin is allowed
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
       callback(null, true);
     } else {
       console.log('Blocked by CORS:', origin);
@@ -62,11 +70,24 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 5000; // 5 seconds
 
 async function connectToDatabase() {
+  // If already connected, return
+  if (isConnected) {
+    return;
+  }
+
   while (connectionAttempts < MAX_RETRIES && !isConnected) {
     try {
+      if (mongoose.connections[0].readyState) {
+        isConnected = true;
+        console.log('Using existing MongoDB connection');
+        return;
+      }
+
       await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000
+        serverSelectionTimeoutMS: 5000,
+        bufferCommands: false,
       });
+      
       isConnected = true;
       console.log('Connected to MongoDB');
     } catch (error) {
@@ -81,12 +102,25 @@ async function connectToDatabase() {
 
   if (!isConnected) {
     console.error('Failed to connect to MongoDB after maximum retries');
-    process.exit(1);
+    throw new Error('Database connection failed');
   }
 }
 
 // Initialize MongoDB connection
-connectToDatabase().catch(console.error);
+connectToDatabase().catch(error => {
+  console.error('Database connection error:', error);
+  process.exit(1);
+});
+
+// Middleware to ensure database connection
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Routes
 app.use('/api/books', booksRoute);
