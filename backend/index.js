@@ -19,159 +19,66 @@ if (missingEnvVars.length > 0) {
 }
 
 // CORS configuration
-const corsOptions = {
-  origin: [
-    'http://localhost:5173',
-    'https://kazibookmanagement.netlify.app',
-    'https://book-management-plum.vercel.app'
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+app.use(cors({
+  origin: ['https://kazibookmanagement.netlify.app', 'http://localhost:5173'],
   credentials: true,
-  maxAge: 86400 // 24 hours
-};
-
-// Apply CORS before other middleware
-app.use(cors(corsOptions));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
-  next();
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
   });
-});
-
-// MongoDB connection with retry logic
-let isConnected = false;
-let connectionAttempts = 0;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 5000; // 5 seconds
-
-async function connectToDatabase() {
-  // If already connected, return
-  if (isConnected) {
-    return;
-  }
-
-  while (connectionAttempts < MAX_RETRIES && !isConnected) {
-    try {
-      if (mongoose.connections[0].readyState) {
-        isConnected = true;
-        console.log('Using existing MongoDB connection');
-        return;
-      }
-
-      await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000,
-        bufferCommands: false,
-      });
-      
-      isConnected = true;
-      console.log('Connected to MongoDB');
-    } catch (error) {
-      connectionAttempts++;
-      console.error(`MongoDB connection attempt ${connectionAttempts} failed:`, error.message);
-      if (connectionAttempts < MAX_RETRIES) {
-        console.log(`Retrying in ${RETRY_DELAY/1000} seconds...`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      }
-    }
-  }
-
-  if (!isConnected) {
-    console.error('Failed to connect to MongoDB after maximum retries');
-    throw new Error('Database connection failed');
-  }
-}
-
-// Initialize MongoDB connection
-connectToDatabase().catch(error => {
-  console.error('Database connection error:', error);
-  process.exit(1);
-});
-
-// Middleware to ensure database connection
-app.use(async (req, res, next) => {
-  try {
-    await connectToDatabase();
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
 
 // Routes
 app.use('/api/books', booksRoute);
 app.use('/api/auth', authRoute);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    mongodb: isConnected ? 'connected' : 'disconnected',
-    environment: process.env.NODE_ENV,
-    uptime: process.uptime()
-  });
-});
-
 // Root endpoint
 app.get('/', (req, res) => {
-  res.status(200).json({
-    message: 'Book Management API',
-    version: '1.0.0',
-    status: 'online',
-    timestamp: new Date().toISOString(),
+  res.json({ 
+    message: 'Welcome to Book Management API',
     endpoints: {
-      health: '/api/health',
-      books: '/api/books',
-      auth: '/api/auth'
+      auth: '/api/auth',
+      books: '/api/books'
     }
   });
 });
 
-// 404 handler for undefined routes
-app.use((req, res) => {
-  const error = {
-    message: 'Route not found',
-    path: req.path,
-    method: req.method,
-    timestamp: new Date().toISOString()
-  };
-  console.log('404 Error:', error);
-  res.status(404).json(error);
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
 });
 
-// Error handler
+// Error handling middleware
 app.use((err, req, res, next) => {
-  const error = {
-    message: err.message || 'Something went wrong!',
-    path: req.path,
-    method: req.method,
-    timestamp: new Date().toISOString(),
-    error: process.env.NODE_ENV === 'development' ? err : {}
-  };
-  console.error('Server Error:', error);
-  res.status(err.status || 500).json(error);
+  console.error('Error:', err);
+  res.status(500).json({ 
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
 });
 
 // Start server
 const PORT = process.env.PORT || 5555;
-
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
-export default app;
