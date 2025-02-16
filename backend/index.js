@@ -19,26 +19,12 @@ if (missingEnvVars.length > 0) {
 }
 
 // CORS configuration
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://kazibookmanagement.netlify.app',
-  'https://book-management-plum.vercel.app'
-];
-
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('Blocked by CORS:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'http://localhost:5173',
+    'https://kazibookmanagement.netlify.app',
+    'https://book-management-plum.vercel.app'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -48,9 +34,6 @@ const corsOptions = {
 // Apply CORS before other middleware
 app.use(cors(corsOptions));
 
-// Options preflight
-app.options('*', cors(corsOptions));
-
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -59,6 +42,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
   next();
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
 });
 
 // MongoDB connection with retry logic
@@ -124,18 +116,9 @@ app.use(async (req, res, next) => {
 app.use('/api/books', booksRoute);
 app.use('/api/auth', authRoute);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal Server Error',
-    error: process.env.NODE_ENV === 'development' ? err : {}
-  });
-});
-
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({
+  res.status(200).json({ 
     status: 'healthy',
     timestamp: new Date().toISOString(),
     mongodb: isConnected ? 'connected' : 'disconnected',
@@ -157,11 +140,6 @@ app.get('/', (req, res) => {
       auth: '/api/auth'
     }
   });
-});
-
-// Handle preflight requests
-app.options('*', (req, res) => {
-  res.status(200).end();
 });
 
 // 404 handler for undefined routes
