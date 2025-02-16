@@ -1,9 +1,11 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Book Management System Backend",
   "type": "module",
   "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
@@ -19,21 +21,20 @@
     "@aws-sdk/client-s3": "^3.x",
     "@elastic/elasticsearch": "^8.x",
     "axios": "^1.x",
-    "bcryptjs": "^2.x",
+    "bcryptjs": "^2.4.3",
     "cloudinary": "^1.x",
-    "cors": "^2.x",
-    "dotenv": "^16.x",
-    "express": "^4.x",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
     "express-rate-limit": "^7.x",
-    "jsonwebtoken": "^9.x",
-    "mongoose": "^8.x",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^7.0.3",
     "multer": "^1.x",
     "multer-storage-cloudinary": "^4.x",
     "node-cron": "^3.x",
     "zlib": "^1.x"
   },
   "devDependencies": {
-    "nodemon": "^3.x"
-  },
-  "type": "module"
+    "nodemon": "^3.0.1"
+  }
 }
