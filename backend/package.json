@@ -5,7 +5,7 @@
   "type": "module",
   "main": "index.js",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   },
   "scripts": {
     "start": "node index.js",
@@ -20,23 +20,15 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.x",
-    "@elastic/elasticsearch": "^8.x",
-    "axios": "^1.x",
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^1.x",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.3",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "express-rate-limit": "^7.x",
-    "jsonwebtoken": "^9.0.0",
-    "mongoose": "^7.0.3",
-    "multer": "^1.x",
-    "multer-storage-cloudinary": "^4.x",
-    "node-cron": "^3.x",
-    "zlib": "^1.x"
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.6.3",
+    "multer": "^1.4.4-lts.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.2"
   }
 }
