@@ -20,15 +20,12 @@ if (missingEnvVars.length > 0) {
 
 // CORS configuration
 const allowedOrigins = [
-  'http://localhost:5173', // Local frontend
-  'http://localhost:3000',
-  process.env.FRONTEND_URL, // Production frontend URL
-  'https://book-management-kazi.netlify.app' // Your Netlify domain
+  'http://localhost:5173',
+  process.env.FRONTEND_URL || 'https://kazibookmanagement.netlify.app'
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -44,6 +41,9 @@ const corsOptions = {
 
 // Apply CORS before other middleware
 app.use(cors(corsOptions));
+
+// Options preflight
+app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(express.json());
@@ -92,15 +92,6 @@ connectToDatabase().catch(console.error);
 app.use('/api/books', booksRoute);
 app.use('/api/auth', authRoute);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    mongodb: isConnected ? 'connected' : 'disconnected'
-  });
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -108,6 +99,62 @@ app.use((err, req, res, next) => {
     message: err.message || 'Internal Server Error',
     error: process.env.NODE_ENV === 'development' ? err : {}
   });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    mongodb: isConnected ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV,
+    uptime: process.uptime()
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'Book Management API',
+    version: '1.0.0',
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      books: '/api/books',
+      auth: '/api/auth'
+    }
+  });
+});
+
+// Handle preflight requests
+app.options('*', (req, res) => {
+  res.status(200).end();
+});
+
+// 404 handler for undefined routes
+app.use((req, res) => {
+  const error = {
+    message: 'Route not found',
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString()
+  };
+  console.log('404 Error:', error);
+  res.status(404).json(error);
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  const error = {
+    message: err.message || 'Something went wrong!',
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString(),
+    error: process.env.NODE_ENV === 'development' ? err : {}
+  };
+  console.error('Server Error:', error);
+  res.status(err.status || 500).json(error);
 });
 
 // Start server
