@@ -1,0 +1,39 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Book Management System Backend",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "book",
+    "management",
+    "mern"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.x",
+    "@elastic/elasticsearch": "^8.x",
+    "axios": "^1.x",
+    "bcryptjs": "^2.x",
+    "cloudinary": "^1.x",
+    "cors": "^2.x",
+    "dotenv": "^16.x",
+    "express": "^4.x",
+    "express-rate-limit": "^7.x",
+    "jsonwebtoken": "^9.x",
+    "mongoose": "^8.x",
+    "multer": "^1.x",
+    "multer-storage-cloudinary": "^4.x",
+    "node-cron": "^3.x",
+    "zlib": "^1.x"
+  },
+  "devDependencies": {
+    "nodemon": "^3.x"
+  },
+  "type": "module"
+}
