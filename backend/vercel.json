@@ -8,18 +8,25 @@
     ],
     "routes": [
         {
-            "src": "/(.*)",
+            "src": "/api/(.*)",
             "dest": "/index.js",
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             "headers": {
-                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Origin": "https://kazibookmanagement.netlify.app",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization",
+                "Access-Control-Allow-Credentials": "true",
                 "Access-Control-Max-Age": "86400"
             }
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.js"
         }
     ],
     "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "MONGODB_URI": "@mongodb_uri",
+        "JWT_SECRET": "@jwt_secret"
     }
 }

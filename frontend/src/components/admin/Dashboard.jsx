@@ -47,29 +47,36 @@ const Dashboard = () => {
   const fetchMetrics = async () => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!user.token) {
+        throw new Error('No authentication token found');
+      }
+
       const config = {
         headers: {
-          Authorization: `Bearer ${user.token}`
+          Authorization: `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
         }
       };
 
-      const [systemRes, usersRes, booksRes, errorsRes] = await Promise.all([
-        axios.get(getApiUrl('/api/admin/metrics/system'), config),
-        axios.get(getApiUrl('/api/admin/metrics/users'), config),
-        axios.get(getApiUrl('/api/admin/metrics/books'), config),
-        axios.get(getApiUrl('/api/admin/metrics/errors'), config)
-      ]);
+      setLoading(true);
+      
+      const systemRes = await axios.get(getApiUrl('/api/admin/metrics/system'), config);
+      const usersRes = await axios.get(getApiUrl('/api/admin/metrics/users'), config);
+      const booksRes = await axios.get(getApiUrl('/api/admin/metrics/books'), config);
+      const errorsRes = await axios.get(getApiUrl('/api/admin/metrics/errors'), config);
 
       setMetrics({
-        system: systemRes.data,
-        users: usersRes.data,
-        books: booksRes.data,
-        errors: errorsRes.data
+        system: systemRes.data || [],
+        users: usersRes.data || [],
+        books: booksRes.data || [],
+        errors: errorsRes.data || []
       });
     } catch (error) {
       console.error('Error fetching metrics:', error);
-      enqueueSnackbar(error.response?.data?.message || 'Error fetching metrics', { 
-        variant: 'error' 
+      const errorMessage = error.response?.data?.message || error.message || 'Error fetching metrics';
+      enqueueSnackbar(errorMessage, { 
+        variant: 'error',
+        autoHideDuration: 3000
       });
     } finally {
       setLoading(false);
