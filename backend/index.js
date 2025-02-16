@@ -21,7 +21,7 @@ if (missingEnvVars.length > 0) {
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://kazibookmanagement.netlify.app'
+  process.env.FRONTEND_URL || 'https://kazibookmanagement.netlify.app'
 ];
 
 const corsOptions = {
@@ -29,6 +29,7 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log('Blocked by CORS:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -59,7 +60,7 @@ app.use((err, req, res, next) => {
 
 // Logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
   next();
 });
 
