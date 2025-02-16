@@ -3,14 +3,13 @@
   "builds": [
     {
       "src": "index.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node@2.15.10"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/index.js",
-      "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+      "dest": "/index.js"
     }
   ],
   "env": {
