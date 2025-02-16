@@ -23,50 +23,96 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// MongoDB connection
+let cachedDb = null;
+
+async function connectToDatabase() {
+  if (cachedDb) {
+    return cachedDb;
+  }
+
+  try {
+    const mongoDBURL = process.env.MONGODB_URI;
+    if (!mongoDBURL) {
+      throw new Error('MONGODB_URI is not defined');
+    }
+
+    const client = await mongoose.connect(mongoDBURL, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+
+    cachedDb = client;
+    console.log('Connected to MongoDB');
+    return cachedDb;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
+}
+
+// Connect to MongoDB before handling routes
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error('Database connection error:', error);
+    res.status(500).json({ message: 'Database connection error' });
+  }
+});
+
 // Routes
 app.use('/api/books', booksRoute);
 app.use('/api/auth', authRoute);
 
 // Health check endpoint
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Book Management API is running',
-    cors: {
-      origin: corsOptions.origin,
-      frontend_url: process.env.FRONTEND_URL
-    }
-  });
+app.get('/', async (req, res) => {
+  try {
+    await connectToDatabase();
+    res.json({ 
+      message: 'Book Management API is running',
+      cors: {
+        origin: corsOptions.origin,
+        frontend_url: process.env.FRONTEND_URL
+      },
+      database: 'Connected'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'API is running but database connection failed',
+      error: error.message
+    });
+  }
 });
 
-app.get('/api', (req, res) => {
-  res.json({ 
-    message: 'API is working',
-    cors: {
-      origin: corsOptions.origin,
-      frontend_url: process.env.FRONTEND_URL
-    }
-  });
+app.get('/api', async (req, res) => {
+  try {
+    await connectToDatabase();
+    res.json({ 
+      message: 'API is working',
+      cors: {
+        origin: corsOptions.origin,
+        frontend_url: process.env.FRONTEND_URL
+      },
+      database: 'Connected'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'API is running but database connection failed',
+      error: error.message
+    });
+  }
 });
 
 // Error handling
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  console.error('Error:', err);
+  res.status(500).json({ 
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
 });
-
-// MongoDB connection
-const mongoDBURL = process.env.MONGODB_URI;
-
-if (mongoDBURL) {
-  mongoose
-    .connect(mongoDBURL)
-    .then(() => {
-      console.log('Connected to MongoDB');
-    })
-    .catch((error) => {
-      console.error('MongoDB connection error:', error);
-    });
-}
 
 // Start server if not in Vercel
 if (process.env.NODE_ENV !== 'production') {

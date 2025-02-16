@@ -14,8 +14,6 @@
         }
     ],
     "env": {
-        "MONGODB_URI": "${MONGODB_URI}",
-        "JWT_SECRET": "${JWT_SECRET}",
-        "FRONTEND_URL": "https://kazibookmanagement.netlify.app"
+        "NODE_ENV": "production"
     }
 }
