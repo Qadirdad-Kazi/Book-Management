@@ -10,7 +10,14 @@ dotenv.config();
 const app = express();
 
 // CORS configuration
-app.use(cors());
+const corsOptions = {
+  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://kazibookmanagement.netlify.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json());
@@ -22,11 +29,23 @@ app.use('/api/auth', authRoute);
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ message: 'Book Management API is running' });
+  res.json({ 
+    message: 'Book Management API is running',
+    cors: {
+      origin: corsOptions.origin,
+      frontend_url: process.env.FRONTEND_URL
+    }
+  });
 });
 
 app.get('/api', (req, res) => {
-  res.json({ message: 'API is working' });
+  res.json({ 
+    message: 'API is working',
+    cors: {
+      origin: corsOptions.origin,
+      frontend_url: process.env.FRONTEND_URL
+    }
+  });
 });
 
 // Error handling
