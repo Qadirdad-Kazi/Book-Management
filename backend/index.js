@@ -9,12 +9,34 @@ dotenv.config();
 
 const app = express();
 
+// Verify required environment variables
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
+
 // CORS configuration
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://kazibookmanagement.netlify.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 const corsOptions = {
-  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://kazibookmanagement.netlify.app'],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
+  maxAge: 86400 // 24 hours
 };
 
 app.use(cors(corsOptions));
@@ -23,30 +45,42 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 // MongoDB connection
-let cachedDb = null;
+let isConnected = false;
+let connectionAttempts = 0;
+const MAX_RETRIES = 3;
 
 async function connectToDatabase() {
-  if (cachedDb) {
-    return cachedDb;
+  if (isConnected) {
+    return;
   }
 
   try {
-    const mongoDBURL = process.env.MONGODB_URI;
-    if (!mongoDBURL) {
-      throw new Error('MONGODB_URI is not defined');
+    if (connectionAttempts >= MAX_RETRIES) {
+      throw new Error('Max connection retries reached');
     }
 
-    const client = await mongoose.connect(mongoDBURL, {
+    connectionAttempts++;
+    
+    await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 5,
     });
 
-    cachedDb = client;
+    isConnected = true;
+    connectionAttempts = 0;
     console.log('Connected to MongoDB');
-    return cachedDb;
   } catch (error) {
     console.error('MongoDB connection error:', error);
+    isConnected = false;
     throw error;
   }
 }
@@ -54,11 +88,51 @@ async function connectToDatabase() {
 // Connect to MongoDB before handling routes
 app.use(async (req, res, next) => {
   try {
-    await connectToDatabase();
+    if (!isConnected) {
+      await connectToDatabase();
+    }
     next();
   } catch (error) {
-    console.error('Database connection error:', error);
-    res.status(500).json({ message: 'Database connection error' });
+    console.error('Database connection middleware error:', error);
+    res.status(500).json({ 
+      message: 'Database connection error',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Health check endpoint
+app.get('/', async (req, res) => {
+  try {
+    const healthCheck = {
+      uptime: process.uptime(),
+      message: 'OK',
+      timestamp: new Date().toISOString(),
+      cors: {
+        allowedOrigins,
+        currentOrigin: req.get('origin')
+      },
+      env: {
+        node_env: process.env.NODE_ENV,
+        has_mongodb_uri: !!process.env.MONGODB_URI,
+        has_jwt_secret: !!process.env.JWT_SECRET,
+        has_frontend_url: !!process.env.FRONTEND_URL
+      }
+    };
+
+    if (!isConnected) {
+      await connectToDatabase();
+    }
+
+    healthCheck.database = 'Connected';
+    res.status(200).json(healthCheck);
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ 
+      status: 'Error',
+      message: 'API is running but has issues',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 
@@ -66,52 +140,42 @@ app.use(async (req, res, next) => {
 app.use('/api/books', booksRoute);
 app.use('/api/auth', authRoute);
 
-// Health check endpoint
-app.get('/', async (req, res) => {
-  try {
-    await connectToDatabase();
-    res.json({ 
-      message: 'Book Management API is running',
-      cors: {
-        origin: corsOptions.origin,
-        frontend_url: process.env.FRONTEND_URL
-      },
-      database: 'Connected'
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: 'API is running but database connection failed',
-      error: error.message
-    });
-  }
-});
-
-app.get('/api', async (req, res) => {
-  try {
-    await connectToDatabase();
-    res.json({ 
-      message: 'API is working',
-      cors: {
-        origin: corsOptions.origin,
-        frontend_url: process.env.FRONTEND_URL
-      },
-      database: 'Connected'
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: 'API is running but database connection failed',
-      error: error.message
-    });
-  }
-});
-
-// Error handling
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(500).json({ 
+  
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      message: 'Validation Error',
+      errors: Object.values(err.errors).map(e => e.message)
+    });
+  }
+  
+  if (err.name === 'MongoServerError' && err.code === 11000) {
+    return res.status(409).json({
+      message: 'Duplicate Key Error',
+      error: 'A record with this key already exists'
+    });
+  }
+
+  // Default error response
+  res.status(500).json({
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });
 
 // Start server if not in Vercel
