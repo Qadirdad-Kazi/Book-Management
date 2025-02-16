@@ -9,7 +9,7 @@
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "/index.js",
+            "dest": "index.js",
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             "headers": {
                 "Access-Control-Allow-Origin": "https://kazibookmanagement.netlify.app",
@@ -21,8 +21,6 @@
         }
     ],
     "env": {
-        "NODE_ENV": "production",
-        "MONGODB_URI": "@mongodb_uri",
-        "JWT_SECRET": "@jwt_secret"
+        "NODE_ENV": "production"
     }
 }
