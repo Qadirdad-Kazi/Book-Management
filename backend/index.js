@@ -11,17 +11,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load environment variables
-dotenv.config({ path: join(__dirname, '.env') });
+dotenv.config();
 
 const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || ['http://localhost:5173', 'https://kazibookmanagement.netlify.app'],
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true,
-  optionsSuccessStatus: 204,
+  origin: ['http://localhost:5173', 'https://kazibookmanagement.netlify.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 204
 };
 
 // Middleware
@@ -37,7 +37,11 @@ app.use((req, res, next) => {
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to Book Management API', status: "healthy" });
+  res.json({ message: 'Book Management API is running', status: 'healthy' });
+});
+
+app.get('/api', (req, res) => {
+  res.json({ message: 'Welcome to Book Management API', status: 'healthy' });
 });
 
 // Routes
@@ -47,31 +51,31 @@ app.use('/api/auth', authRoute);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });
 });
 
 // MongoDB connection
-const mongoDBURL = process.env.MONGODB_URI;
-
 mongoose
-  .connect(mongoDBURL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  })
+  .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB Atlas');
     const PORT = process.env.PORT || 5555;
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🚀 Server is running on port ${PORT}`);
     });
   })
   .catch((error) => {
     console.error('❌ MongoDB connection error:', error);
   });
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.log('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.log(err.name, err.message);
+  process.exit(1);
+});
 
 export default app;
