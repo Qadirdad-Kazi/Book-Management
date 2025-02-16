@@ -110,11 +110,12 @@ app.use(async (req, res, next) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    mongodb: isConnected ? 'connected' : 'disconnected'
+    mongodb: isConnected ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV
   });
 });
 
@@ -122,17 +123,32 @@ app.get('/health', (req, res) => {
 app.use('/api/books', booksRoute);
 app.use('/api/auth', authRoute);
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Book Management API',
+    version: '1.0.0',
+    endpoints: [
+      '/api/health',
+      '/api/books',
+      '/api/auth'
+    ]
+  });
+});
+
 // 404 handler
 app.use((req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.path}`);
   res.status(404).json({
     message: 'Route not found',
-    path: req.path
+    path: req.path,
+    method: req.method
   });
 });
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error(`Error: ${err.message}\nStack: ${err.stack}`);
   res.status(err.status || 500).json({
     message: err.message || 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err : {}
