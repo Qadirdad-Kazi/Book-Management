@@ -8,7 +8,7 @@
     ],
     "routes": [
         {
-            "src": "/api/(.*)",
+            "src": "/(.*)",
             "dest": "/index.js",
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             "headers": {
@@ -18,10 +18,6 @@
                 "Access-Control-Allow-Credentials": "true",
                 "Access-Control-Max-Age": "86400"
             }
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/index.js"
         }
     ],
     "env": {

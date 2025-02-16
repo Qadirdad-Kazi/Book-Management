@@ -115,7 +115,8 @@ app.get('/api/health', (req, res) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     mongodb: isConnected ? 'connected' : 'disconnected',
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    uptime: process.uptime()
   });
 });
 
@@ -125,34 +126,47 @@ app.use('/api/auth', authRoute);
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.json({
+  res.status(200).json({
     message: 'Book Management API',
     version: '1.0.0',
-    endpoints: [
-      '/api/health',
-      '/api/books',
-      '/api/auth'
-    ]
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      books: '/api/books',
+      auth: '/api/auth'
+    }
   });
 });
 
-// 404 handler
+// Handle preflight requests
+app.options('*', (req, res) => {
+  res.status(200).end();
+});
+
+// 404 handler for undefined routes
 app.use((req, res) => {
-  console.log(`404 - Route not found: ${req.method} ${req.path}`);
-  res.status(404).json({
+  const error = {
     message: 'Route not found',
     path: req.path,
-    method: req.method
-  });
+    method: req.method,
+    timestamp: new Date().toISOString()
+  };
+  console.log('404 Error:', error);
+  res.status(404).json(error);
 });
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(`Error: ${err.message}\nStack: ${err.stack}`);
-  res.status(err.status || 500).json({
+  const error = {
     message: err.message || 'Something went wrong!',
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString(),
     error: process.env.NODE_ENV === 'development' ? err : {}
-  });
+  };
+  console.error('Server Error:', error);
+  res.status(err.status || 500).json(error);
 });
 
 const PORT = process.env.PORT || 5555;
