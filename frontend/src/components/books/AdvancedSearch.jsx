@@ -3,7 +3,6 @@ import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { FiSearch, FiFilter, FiX } from 'react-icons/fi';
 import { debounce } from 'lodash';
-import { getApiUrl } from '../../config/api';
 
 const AdvancedSearch = ({ onSearch, className }) => {
   const [searchParams, setSearchParams] = useState({
@@ -41,58 +40,54 @@ const AdvancedSearch = ({ onSearch, className }) => {
     }
 
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
       const response = await axios.get(
-        getApiUrl('/api/search/suggest'),
+        `http://localhost:5555/api/search/suggest?query=${query}`,
         {
-          params: { query },
           headers: {
-            Authorization: `Bearer ${user.token}`
+            Authorization: `Bearer ${localStorage.getItem('token')}`
           }
         }
       );
       setSuggestions(response.data);
     } catch (error) {
       console.error('Error getting suggestions:', error);
-      setSuggestions({ titles: [], authors: [] });
     }
   }, 300);
 
-  const handleSearch = async (e) => {
-    e?.preventDefault();
-    setLoading(true);
+  useEffect(() => {
+    getSuggestions(searchParams.query);
+    return () => getSuggestions.cancel();
+  }, [searchParams.query]);
 
+  const handleSearch = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setLoading(true);
       const response = await axios.get(
-        getApiUrl('/api/books/search'),
+        'http://localhost:5555/api/search/books',
         {
-          params: searchParams,
+          params: {
+            ...searchParams,
+            genres: JSON.stringify(searchParams.genres)
+          },
           headers: {
-            Authorization: `Bearer ${user.token}`
+            Authorization: `Bearer ${localStorage.getItem('token')}`
           }
         }
       );
       onSearch(response.data);
     } catch (error) {
-      console.error('Search error:', error);
-      enqueueSnackbar(error.response?.data?.message || 'Search failed', { 
-        variant: 'error' 
-      });
+      console.error('Error searching books:', error);
+      enqueueSnackbar('Error searching books', { variant: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setSearchParams(prev => ({ ...prev, [name]: value }));
-    if (name === 'query') {
-      getSuggestions(value);
-    }
+  const handleInputChange = (field, value) => {
+    setSearchParams(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleGenreChange = (genre) => {
+  const toggleGenre = (genre) => {
     setSearchParams(prev => ({
       ...prev,
       genres: prev.genres.includes(genre)
@@ -103,7 +98,7 @@ const AdvancedSearch = ({ onSearch, className }) => {
 
   const clearFilters = () => {
     setSearchParams({
-      query: '',
+      query: searchParams.query,
       genres: [],
       minRating: 0,
       maxRating: 5,
@@ -111,143 +106,151 @@ const AdvancedSearch = ({ onSearch, className }) => {
       endYear: '',
       sortBy: 'relevance'
     });
-    setSuggestions({ titles: [], authors: [] });
   };
-
-  useEffect(() => {
-    // Initial search when component mounts
-    handleSearch();
-  }, []);
 
   return (
     <div className={className}>
-      <form onSubmit={handleSearch} className="space-y-4">
-        <div className="flex items-center space-x-2">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              name="query"
-              value={searchParams.query}
-              onChange={handleInputChange}
-              placeholder="Search books..."
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            {loading && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowFilters(!showFilters)}
-            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
-            <FiFilter className="w-5 h-5" />
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center space-x-2"
-          >
-            <FiSearch className="w-5 h-5" />
-            <span>Search</span>
-          </button>
+      {/* Search Bar */}
+      <div className="flex items-center space-x-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={searchParams.query}
+            onChange={(e) => handleInputChange('query', e.target.value)}
+            placeholder="Search books by title, author, or description..."
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+          {suggestions.titles.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg">
+              {suggestions.titles.map((title, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleInputChange('query', title)}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                >
+                  {title}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="p-2 text-gray-600 hover:text-gray-800 focus:outline-none"
+        >
+          <FiFilter className="w-5 h-5" />
+        </button>
+        <button
+          onClick={handleSearch}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+        >
+          {loading ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+          ) : (
+            <FiSearch className="w-5 h-5" />
+          )}
+        </button>
+      </div>
 
-        {showFilters && (
-          <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold">Advanced Filters</h3>
-              <button
-                type="button"
-                onClick={() => setShowFilters(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Filters Panel */}
+      {showFilters && (
+        <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Filters</h3>
+            <button
+              onClick={clearFilters}
+              className="text-sm text-gray-600 hover:text-gray-800"
+            >
+              Clear all
+            </button>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Genres</label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {genreOptions.map(genre => (
-                    <button
-                      key={genre}
-                      type="button"
-                      onClick={() => handleGenreChange(genre)}
-                      className={`px-3 py-1 rounded-full text-sm ${
-                        searchParams.genres.includes(genre)
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {genre}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Start Year</label>
-                  <input
-                    type="number"
-                    name="startYear"
-                    value={searchParams.startYear}
-                    onChange={handleInputChange}
-                    placeholder="From year"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">End Year</label>
-                  <input
-                    type="number"
-                    name="endYear"
-                    value={searchParams.endYear}
-                    onChange={handleInputChange}
-                    placeholder="To year"
-                    className="mt-1 block w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Sort By</label>
-                <select
-                  name="sortBy"
-                  value={searchParams.sortBy}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full px-3 py-2 border rounded-md"
-                >
-                  {sortOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex justify-end space-x-2">
+          {/* Genres */}
+          <div className="mb-4">
+            <h4 className="text-sm font-medium mb-2">Genres</h4>
+            <div className="flex flex-wrap gap-2">
+              {genreOptions.map((genre) => (
                 <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                  key={genre}
+                  onClick={() => toggleGenre(genre)}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    searchParams.genres.includes(genre)
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
                 >
-                  Clear All
+                  {genre}
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                >
-                  Apply Filters
-                </button>
-              </div>
+              ))}
             </div>
           </div>
-        )}
-      </form>
+
+          {/* Rating Range */}
+          <div className="mb-4">
+            <h4 className="text-sm font-medium mb-2">Rating Range</h4>
+            <div className="flex items-center space-x-4">
+              <input
+                type="number"
+                min="0"
+                max="5"
+                step="0.5"
+                value={searchParams.minRating}
+                onChange={(e) => handleInputChange('minRating', e.target.value)}
+                className="w-20 px-2 py-1 border rounded"
+              />
+              <span>to</span>
+              <input
+                type="number"
+                min="0"
+                max="5"
+                step="0.5"
+                value={searchParams.maxRating}
+                onChange={(e) => handleInputChange('maxRating', e.target.value)}
+                className="w-20 px-2 py-1 border rounded"
+              />
+            </div>
+          </div>
+
+          {/* Year Range */}
+          <div className="mb-4">
+            <h4 className="text-sm font-medium mb-2">Publication Year</h4>
+            <div className="flex items-center space-x-4">
+              <input
+                type="number"
+                placeholder="From"
+                value={searchParams.startYear}
+                onChange={(e) => handleInputChange('startYear', e.target.value)}
+                className="w-24 px-2 py-1 border rounded"
+              />
+              <span>to</span>
+              <input
+                type="number"
+                placeholder="To"
+                value={searchParams.endYear}
+                onChange={(e) => handleInputChange('endYear', e.target.value)}
+                className="w-24 px-2 py-1 border rounded"
+              />
+            </div>
+          </div>
+
+          {/* Sort By */}
+          <div>
+            <h4 className="text-sm font-medium mb-2">Sort By</h4>
+            <select
+              value={searchParams.sortBy}
+              onChange={(e) => handleInputChange('sortBy', e.target.value)}
+              className="w-full px-2 py-1 border rounded"
+            >
+              {sortOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

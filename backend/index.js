@@ -20,12 +20,15 @@ if (missingEnvVars.length > 0) {
 
 // CORS configuration
 const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL || 'https://kazibookmanagement.netlify.app'
+  'http://localhost:5173', // Local frontend
+  'http://localhost:3000',
+  process.env.FRONTEND_URL, // Production frontend URL
+  'https://book-management-kazi.netlify.app' // Your Netlify domain
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -42,21 +45,9 @@ const corsOptions = {
 // Apply CORS before other middleware
 app.use(cors(corsOptions));
 
-// Options preflight
-app.options('*', cors(corsOptions));
-
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal Server Error',
-    error: process.env.NODE_ENV === 'development' ? err : {}
-  });
-});
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -74,8 +65,6 @@ async function connectToDatabase() {
   while (connectionAttempts < MAX_RETRIES && !isConnected) {
     try {
       await mongoose.connect(process.env.MONGODB_URI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
         serverSelectionTimeoutMS: 5000
       });
       isConnected = true;
@@ -96,87 +85,36 @@ async function connectToDatabase() {
   }
 }
 
-// Connect to MongoDB before handling routes
-app.use(async (req, res, next) => {
-  if (!isConnected) {
-    try {
-      await connectToDatabase();
-      next();
-    } catch (error) {
-      next(error);
-    }
-  } else {
-    next();
-  }
-});
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    mongodb: isConnected ? 'connected' : 'disconnected',
-    environment: process.env.NODE_ENV,
-    uptime: process.uptime()
-  });
-});
+// Initialize MongoDB connection
+connectToDatabase().catch(console.error);
 
 // Routes
 app.use('/api/books', booksRoute);
 app.use('/api/auth', authRoute);
 
-// Root endpoint
-app.get('/', (req, res) => {
+// Health check endpoint
+app.get('/health', (req, res) => {
   res.status(200).json({
-    message: 'Book Management API',
-    version: '1.0.0',
-    status: 'online',
+    status: 'healthy',
     timestamp: new Date().toISOString(),
-    endpoints: {
-      health: '/api/health',
-      books: '/api/books',
-      auth: '/api/auth'
-    }
+    mongodb: isConnected ? 'connected' : 'disconnected'
   });
 });
 
-// Handle preflight requests
-app.options('*', (req, res) => {
-  res.status(200).end();
-});
-
-// 404 handler for undefined routes
-app.use((req, res) => {
-  const error = {
-    message: 'Route not found',
-    path: req.path,
-    method: req.method,
-    timestamp: new Date().toISOString()
-  };
-  console.log('404 Error:', error);
-  res.status(404).json(error);
-});
-
-// Error handler
+// Error handling middleware
 app.use((err, req, res, next) => {
-  const error = {
-    message: err.message || 'Something went wrong!',
-    path: req.path,
-    method: req.method,
-    timestamp: new Date().toISOString(),
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
     error: process.env.NODE_ENV === 'development' ? err : {}
-  };
-  console.error('Server Error:', error);
-  res.status(err.status || 500).json(error);
+  });
 });
 
+// Start server
 const PORT = process.env.PORT || 5555;
 
-// Only start the server if we're not in a serverless environment
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 
 export default app;

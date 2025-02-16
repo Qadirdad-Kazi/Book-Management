@@ -9,7 +9,6 @@ import BooksCard from "../components/home/BooksCard";
 import { useSnackbar } from "notistack";
 import AdvancedSearch from "../components/books/AdvancedSearch";
 import Navigation from "../components/shared/Navigation";
-import { getApiUrl } from "../config/api";
 
 const Home = () => {
   const [books, setBooks] = useState([]);
@@ -28,7 +27,8 @@ const Home = () => {
         },
         params: searchParams
       };
-      const response = await axios.get(getApiUrl('/api/books'), config);
+      
+      const response = await axios.get("http://localhost:5555/api/books", config);
       setBooks(response.data.data);
     } catch (error) {
       console.error('Error fetching books:', error.response?.data || error.message);
