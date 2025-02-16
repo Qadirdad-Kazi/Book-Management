@@ -10,11 +10,16 @@
         {
             "src": "/(.*)",
             "dest": "/index.js",
-            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization",
+                "Access-Control-Max-Age": "86400"
+            }
         }
     ],
     "env": {
         "NODE_ENV": "production"
-    },
-    "regions": ["sin1"]
+    }
 }

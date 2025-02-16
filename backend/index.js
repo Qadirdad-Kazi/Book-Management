@@ -18,9 +18,20 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
-// CORS configuration - Allow all origins in development, specific in production
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://kazibookmanagement.netlify.app'
+];
+
 const corsOptions = {
-  origin: '*', // Allow all origins temporarily
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -37,146 +48,101 @@ app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err : {}
+  });
+});
+
 // Logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-// MongoDB connection
+// MongoDB connection with retry logic
 let isConnected = false;
 let connectionAttempts = 0;
 const MAX_RETRIES = 3;
+const RETRY_DELAY = 5000; // 5 seconds
 
 async function connectToDatabase() {
-  if (isConnected) {
-    return;
+  while (connectionAttempts < MAX_RETRIES && !isConnected) {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 5000
+      });
+      isConnected = true;
+      console.log('Connected to MongoDB');
+    } catch (error) {
+      connectionAttempts++;
+      console.error(`MongoDB connection attempt ${connectionAttempts} failed:`, error.message);
+      if (connectionAttempts < MAX_RETRIES) {
+        console.log(`Retrying in ${RETRY_DELAY/1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      }
+    }
   }
 
-  try {
-    if (connectionAttempts >= MAX_RETRIES) {
-      throw new Error('Max connection retries reached');
-    }
-
-    connectionAttempts++;
-    
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      minPoolSize: 5,
-    });
-
-    isConnected = true;
-    connectionAttempts = 0;
-    console.log('Connected to MongoDB');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    isConnected = false;
-    throw error;
+  if (!isConnected) {
+    console.error('Failed to connect to MongoDB after maximum retries');
+    process.exit(1);
   }
 }
 
 // Connect to MongoDB before handling routes
 app.use(async (req, res, next) => {
-  try {
-    if (!isConnected) {
+  if (!isConnected) {
+    try {
       await connectToDatabase();
+      next();
+    } catch (error) {
+      next(error);
     }
+  } else {
     next();
-  } catch (error) {
-    console.error('Database connection middleware error:', error);
-    res.status(500).json({ 
-      message: 'Database connection error',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
   }
 });
 
 // Health check endpoint
-app.get('/', async (req, res) => {
-  try {
-    const healthCheck = {
-      uptime: process.uptime(),
-      message: 'OK',
-      timestamp: new Date().toISOString(),
-      cors: {
-        origin: corsOptions.origin
-      },
-      env: {
-        node_env: process.env.NODE_ENV,
-        has_mongodb_uri: !!process.env.MONGODB_URI,
-        has_jwt_secret: !!process.env.JWT_SECRET
-      }
-    };
-
-    if (!isConnected) {
-      await connectToDatabase();
-    }
-
-    healthCheck.database = 'Connected';
-    res.status(200).json(healthCheck);
-  } catch (error) {
-    console.error('Health check error:', error);
-    res.status(500).json({ 
-      status: 'Error',
-      message: 'API is running but has issues',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    mongodb: isConnected ? 'connected' : 'disconnected'
+  });
 });
 
 // Routes
 app.use('/api/books', booksRoute);
 app.use('/api/auth', authRoute);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  
-  // Handle specific error types
-  if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      message: 'Validation Error',
-      errors: Object.values(err.errors).map(e => e.message)
-    });
-  }
-  
-  if (err.name === 'MongoServerError' && err.code === 11000) {
-    return res.status(409).json({
-      message: 'Duplicate Key Error',
-      error: 'A record with this key already exists'
-    });
-  }
-
-  // Default error response
-  res.status(500).json({
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    message: 'Route not found',
+    path: req.path
   });
 });
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  // Don't exit in production
-  if (process.env.NODE_ENV !== 'production') {
-    process.exit(1);
-  }
+// Error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    message: err.message || 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err : {}
+  });
 });
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit in production
-  if (process.env.NODE_ENV !== 'production') {
-    process.exit(1);
-  }
-});
+const PORT = process.env.PORT || 5555;
 
-// Start server if not in Vercel
+// Only start the server if we're not in a serverless environment
 if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5555;
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
