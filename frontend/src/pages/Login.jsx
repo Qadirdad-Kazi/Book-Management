@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
+import { getApiUrl } from '../config/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -21,7 +22,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5555/api/auth/login', formData);
+      const response = await axios.post(getApiUrl('/api/auth/login'), formData);
       
       const { token, user } = response.data;
       
@@ -34,8 +35,8 @@ const Login = () => {
       
       enqueueSnackbar('Login successful!', { variant: 'success' });
       
-      // Force a full page reload and redirect
-      window.location.href = '/';
+      // Redirect using navigate instead of full page reload
+      navigate('/');
     } catch (error) {
       console.error('Login error:', error);
       enqueueSnackbar(error.response?.data?.message || 'Login failed', { 
@@ -54,10 +55,7 @@ const Login = () => {
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Or{' '}
-          <Link
-            to="/register"
-            className="font-medium text-indigo-600 hover:text-indigo-500"
-          >
+          <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
             create a new account
           </Link>
         </p>
@@ -67,10 +65,7 @@ const Login = () => {
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
               </label>
               <div className="mt-1">
@@ -88,10 +83,7 @@ const Login = () => {
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
               <div className="mt-1">

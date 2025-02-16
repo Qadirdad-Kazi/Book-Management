@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
 import { FiSearch, FiLoader } from 'react-icons/fi';
+import { getApiUrl } from '../../config/api';
 
 const ISBNLookup = ({ onBookFound, className }) => {
   const [isbn, setIsbn] = useState('');
@@ -16,12 +17,13 @@ const ISBNLookup = ({ onBookFound, className }) => {
 
   const validateISBN = async () => {
     try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
       const response = await axios.post(
-        'http://localhost:5555/api/search/isbn/validate',
+        getApiUrl('/api/search/isbn/validate'),
         { isbn },
         {
           headers: {
-            Authorization: \`Bearer \${localStorage.getItem('token')}\`
+            Authorization: `Bearer ${user.token}`
           }
         }
       );
@@ -49,24 +51,28 @@ const ISBNLookup = ({ onBookFound, className }) => {
       }
 
       // Lookup book details
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
       const response = await axios.get(
-        \`http://localhost:5555/api/search/isbn/\${isbn}\`,
+        getApiUrl('/api/search/isbn'),
         {
+          params: { isbn },
           headers: {
-            Authorization: \`Bearer \${localStorage.getItem('token')}\`
+            Authorization: `Bearer ${user.token}`
           }
         }
       );
 
-      onBookFound(response.data);
-      enqueueSnackbar('Book details found!', { variant: 'success' });
+      if (response.data) {
+        onBookFound(response.data);
+        enqueueSnackbar('Book details found!', { variant: 'success' });
+      } else {
+        enqueueSnackbar('No book found with this ISBN', { variant: 'info' });
+      }
     } catch (error) {
       console.error('Error looking up ISBN:', error);
-      if (error.response?.status === 404) {
-        enqueueSnackbar('Book not found', { variant: 'warning' });
-      } else {
-        enqueueSnackbar('Error looking up ISBN', { variant: 'error' });
-      }
+      enqueueSnackbar(error.response?.data?.message || 'Error looking up ISBN', { 
+        variant: 'error' 
+      });
     } finally {
       setLoading(false);
     }
