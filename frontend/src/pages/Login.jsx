@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useSnackbar } from 'notistack';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -21,21 +23,34 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5555/api/auth/login', formData);
+      const response = await axios.post(`${BACKEND_URL}/api/auth/login`, formData);
       
       const { token, user } = response.data;
       
-      // Store token and user data with token included in user object
-      const userData = { ...user, token };
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      // Set default Authorization header for future requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      enqueueSnackbar('Login successful!', { variant: 'success' });
-      
-      // Force a full page reload and redirect
-      window.location.href = '/';
+      try {
+        // Store minimal user data
+        const userData = {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          token
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        // Set default Authorization header for future requests
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        enqueueSnackbar('Login successful!', { variant: 'success' });
+        
+        // Use navigate instead of window.location for smoother transition
+        navigate('/');
+      } catch (storageError) {
+        console.error('Storage error:', storageError);
+        // Clear localStorage if we hit quota
+        localStorage.clear();
+        // Try again with minimal data
+        localStorage.setItem('user', JSON.stringify({ token }));
+      }
     } catch (error) {
       console.error('Login error:', error);
       enqueueSnackbar(error.response?.data?.message || 'Login failed', { 
@@ -54,10 +69,7 @@ const Login = () => {
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Or{' '}
-          <Link
-            to="/register"
-            className="font-medium text-indigo-600 hover:text-indigo-500"
-          >
+          <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
             create a new account
           </Link>
         </p>
@@ -67,10 +79,7 @@ const Login = () => {
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
               </label>
               <div className="mt-1">
@@ -88,10 +97,7 @@ const Login = () => {
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
               <div className="mt-1">

@@ -122,9 +122,7 @@ const bookSchema = new mongoose.Schema(
 
 // Indexes for better query performance
 bookSchema.index({ title: 'text', author: 'text', description: 'text' });
-bookSchema.index({ genres: 1 });
 bookSchema.index({ owner: 1, order: 1 });
-bookSchema.index({ isbn: 1 });
 
 // Virtual for book URL
 bookSchema.virtual('url').get(function() {
