@@ -60,12 +60,6 @@ A modern full-stack web application for managing your book collection. Built wit
 
 ### Installation
 
-1. Clone the repository
-```bash
-git clone https://github.com/yourusername/book-management.git
-cd book-management
-```
-
 2. Install backend dependencies
 ```bash
 cd backend
