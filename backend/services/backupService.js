@@ -3,8 +3,9 @@ import { User } from '../models/userModel.js';
 import { Analytics } from '../models/analyticsModel.js';
 import fs from 'fs/promises';
 import path from 'path';
-import { createGzip } from 'zlib';
+import { createGzip, createGunzip } from 'node:zlib';
 import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 import { createReadStream, createWriteStream } from 'fs';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import dotenv from 'dotenv';
@@ -137,22 +138,18 @@ export class BackupService {
 
   async compressAndSave(data, filePath) {
     const gzip = createGzip();
-    const source = Buffer.from(JSON.stringify(data));
+    const source = Readable.from([Buffer.from(JSON.stringify(data))]);
     const destination = createWriteStream(filePath);
 
-    await pipeline(
-      source,
-      gzip,
-      destination
-    );
+    await pipeline(source, gzip, destination);
   }
 
   async readAndDecompress(filePath) {
     const source = createReadStream(filePath);
-    const gzip = createGzip();
+    const gunzip = createGunzip();
     let data = '';
 
-    for await (const chunk of source.pipe(gzip)) {
+    for await (const chunk of source.pipe(gunzip)) {
       data += chunk;
     }
 
