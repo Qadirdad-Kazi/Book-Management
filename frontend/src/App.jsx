@@ -1,5 +1,5 @@
 import React from 'react'
-import {Routes, Route, Navigate} from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { SnackbarProvider } from 'notistack'
 
 import Home from './pages/Home'
@@ -11,6 +11,8 @@ import Dashboard from './components/admin/Dashboard'
 import ProtectedRoute from './components/shared/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import BorrowBook from './pages/BorrowBook'
+import ReturnBook from './pages/ReturnBook'
 
 const App = () => {
   return (
@@ -46,15 +48,25 @@ const App = () => {
             <DeleteBook />
           </ProtectedRoute>
         } />
-        
+        <Route path='/books/borrow/:id' element={
+          <ProtectedRoute>
+            <BorrowBook />
+          </ProtectedRoute>
+        } />
+        <Route path='/books/return/:id' element={
+          <ProtectedRoute>
+            <ReturnBook />
+          </ProtectedRoute>
+        } />
+
         {/* Admin Routes */}
-        <Route 
-          path='/admin/dashboard' 
+        <Route
+          path='/admin/dashboard'
           element={
             <ProtectedRoute roles={['admin']}>
               <Dashboard />
             </ProtectedRoute>
-          } 
+          }
         />
 
         {/* Redirect any unknown routes to home */}

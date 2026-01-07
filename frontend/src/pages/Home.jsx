@@ -21,19 +21,19 @@ const Home = () => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const config = {
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${user.token}`,
           'Content-Type': 'application/json'
         },
         params: searchParams
       };
-      
+
       const response = await axios.get("http://localhost:5555/api/books", config);
       setBooks(response.data.data);
     } catch (error) {
       console.error('Error fetching books:', error.response?.data || error.message);
-      enqueueSnackbar(error.response?.data?.message || "Error fetching books", { 
-        variant: "error" 
+      enqueueSnackbar(error.response?.data?.message || "Error fetching books", {
+        variant: "error"
       });
     } finally {
       setLoading(false);
@@ -55,26 +55,24 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row items-center justify-between mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">Book Collection</h1>
-            
+
             <div className="flex items-center space-x-4">
               <div className="flex items-center bg-white rounded-lg shadow-sm p-1">
                 <button
-                  className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-colors duration-200 ${
-                    showType === "table"
+                  className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-colors duration-200 ${showType === "table"
                       ? "bg-blue-100 text-blue-600"
                       : "text-gray-600 hover:bg-gray-100"
-                  }`}
+                    }`}
                   onClick={() => setShowType("table")}
                 >
                   <MdTableView className="text-xl" />
                   <span>Table</span>
                 </button>
                 <button
-                  className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-colors duration-200 ${
-                    showType === "card"
+                  className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-colors duration-200 ${showType === "card"
                       ? "bg-blue-100 text-blue-600"
                       : "text-gray-600 hover:bg-gray-100"
-                  }`}
+                    }`}
                   onClick={() => setShowType("card")}
                 >
                   <MdGridView className="text-xl" />
@@ -111,7 +109,7 @@ const Home = () => {
                 </div>
               ) : showType === "table" ? (
                 <div className="overflow-x-auto">
-                  <BooksTable books={books} />
+                  <BooksTable books={books} onUpdate={fetchBooks} />
                 </div>
               ) : (
                 <div className="p-6">

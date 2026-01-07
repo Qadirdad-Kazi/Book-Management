@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { AiOutlineEdit } from "react-icons/ai";
 import { BsInfoCircle } from "react-icons/bs";
-import { MdOutlineDelete } from "react-icons/md";
+import { MdOutlineDelete, MdBookmarkBorder, MdBookmark } from "react-icons/md";
 
 const BooksTable = ({ books }) => {
   return (
@@ -12,6 +12,7 @@ const BooksTable = ({ books }) => {
           <th className="table-header">Title</th>
           <th className="table-header">Author</th>
           <th className="table-header">Publish Year</th>
+          <th className="table-header">Status</th>
           <th className="table-header">Actions</th>
         </tr>
       </thead>
@@ -23,7 +24,31 @@ const BooksTable = ({ books }) => {
             <td className="table-cell">{book.author}</td>
             <td className="table-cell">{book.publishYear}</td>
             <td className="table-cell">
+              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${book.status === 'Borrowed' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                }`}>
+                {book.status || 'Available'}
+              </span>
+            </td>
+            <td className="table-cell">
               <div className="flex items-center space-x-4">
+                {book.status === 'Borrowed' ? (
+                  <Link
+                    to={`/books/return/${book._id}`}
+                    className="text-green-600 hover:text-green-900 tooltip"
+                    title="Return Book"
+                  >
+                    <MdBookmark className="text-2xl" />
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/books/borrow/${book._id}`}
+                    className="text-indigo-600 hover:text-indigo-900 tooltip"
+                    title="Borrow Book"
+                  >
+                    <MdBookmarkBorder className="text-2xl" />
+                  </Link>
+                )}
+
                 <Link
                   to={`/books/details/${book._id}`}
                   className="text-blue-600 hover:text-blue-900"

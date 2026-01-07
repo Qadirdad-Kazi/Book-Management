@@ -49,9 +49,9 @@ const bookSchema = new mongoose.Schema(
     },
     genres: [{
       type: String,
-      enum: ['Fiction', 'Non-Fiction', 'Science Fiction', 'Fantasy', 'Mystery', 
-             'Thriller', 'Romance', 'Horror', 'Biography', 'History', 'Science', 
-             'Technology', 'Self-Help', 'Poetry', 'Drama', 'Children', 'Other'],
+      enum: ['Fiction', 'Non-Fiction', 'Science Fiction', 'Fantasy', 'Mystery',
+        'Thriller', 'Romance', 'Horror', 'Biography', 'History', 'Science',
+        'Technology', 'Self-Help', 'Poetry', 'Drama', 'Children', 'Other'],
       trim: true,
     }],
     coverImage: {
@@ -80,7 +80,7 @@ const bookSchema = new mongoose.Schema(
     },
     estimatedReadingTime: {
       type: Number, // in minutes
-      default: function() {
+      default: function () {
         return this.pageCount ? Math.round(this.pageCount * 1.5) : null;
       }
     },
@@ -124,15 +124,15 @@ const bookSchema = new mongoose.Schema(
 bookSchema.index({ title: 'text', author: 'text', description: 'text' });
 bookSchema.index({ genres: 1 });
 bookSchema.index({ owner: 1, order: 1 });
-bookSchema.index({ isbn: 1 });
+// bookSchema.index({ isbn: 1 }); // Removed duplicate index
 
 // Virtual for book URL
-bookSchema.virtual('url').get(function() {
+bookSchema.virtual('url').get(function () {
   return `/books/${this._id}`;
 });
 
 // Pre-save middleware to update averageRating
-bookSchema.pre('save', function(next) {
+bookSchema.pre('save', function (next) {
   if (this.reviews.length > 0) {
     const totalRating = this.reviews.reduce((sum, review) => sum + review.rating, 0);
     this.averageRating = Math.round((totalRating / this.reviews.length) * 10) / 10;

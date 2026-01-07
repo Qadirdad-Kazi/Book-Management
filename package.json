@@ -1,0 +1,21 @@
+{
+    "name": "book-management-root",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "workspaces": [
+        "backend",
+        "frontend"
+    ],
+    "scripts": {
+        "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+        "test:regression": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/regression.test.js",
+        "test:library": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/libraryService.test.js"
+    },
+    "devDependencies": {
+        "cross-env": "^10.1.0",
+        "jest": "^30.2.0",
+        "mongodb-memory-server": "^11.0.1",
+        "supertest": "^7.2.2"
+    }
+}
